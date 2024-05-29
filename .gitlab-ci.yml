@@ -17,10 +17,26 @@ build_zip:
 release:
   stage: release
   script:
-    - echo "Creating a release..."
-    - curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" --data "name=Release $CI_COMMIT_REF_NAME" --data "tag_name=$CI_COMMIT_REF_NAME" --data "ref=$CI_COMMIT_SHA" --data "description=Release of version $CI_COMMIT_REF_NAME" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/releases"
-    - echo "Uploading the zip file to the release..."
-    - curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" --upload-file "${ZIP_FILE}" "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/uploads"
+    - |
+      echo "Creating a release..."
+      curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
+           --data "name=Release $CI_COMMIT_REF_NAME" \
+           --data "tag_name=$CI_COMMIT_REF_NAME" \
+           --data "ref=$CI_COMMIT_SHA" \
+           --data "description=Release of version $CI_COMMIT_REF_NAME" \
+           "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/releases"
+    - |
+      echo "Uploading the zip file to the release..."
+      UPLOAD_RESPONSE=$(curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
+                             --upload-file "${ZIP_FILE}" \
+                             "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/uploads")
+      UPLOAD_URL=$(echo $UPLOAD_RESPONSE | jq -r '.url')
+    - |
+      curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
+           --request PUT \
+           --data "assets.links[0][name]=${ZIP_FILE}" \
+           --data "assets.links[0][url]=${UPLOAD_URL}" \
+           "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_REF_NAME"
   only:
     - tags
 
