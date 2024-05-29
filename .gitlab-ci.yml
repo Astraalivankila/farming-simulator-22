@@ -7,6 +7,9 @@ variables:
 
 build_zip:
   stage: build
+  image: alpine:latest
+  before_script:
+    - apk update && apk add zip
   script:
     - echo "Zipping the repository..."
     - zip -r "${ZIP_FILE}" .
@@ -16,6 +19,9 @@ build_zip:
 
 release:
   stage: release
+  image: alpine:latest
+  before_script:
+    - apk update && apk add curl jq
   script:
     - |
       echo "Creating a release..."
@@ -39,4 +45,9 @@ release:
            "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_REF_NAME"
   only:
     - tags
+  dependencies:
+    - build_zip
+  artifacts:
+    paths:
+      - "${ZIP_FILE}"
 
