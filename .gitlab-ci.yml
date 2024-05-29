@@ -11,8 +11,8 @@ build_zip:
   before_script:
     - apk update && apk add zip
   script:
-    - echo "Zipping the repository..."
-    - zip -r "${ZIP_FILE}" .
+    - echo "Zipping the repository, excluding .git and hidden files/folders..."
+    - zip -r "${ZIP_FILE}" . --exclude ".*" --exclude ".*/**" --exclude ".git/**"
   artifacts:
     paths:
       - "${ZIP_FILE}"
