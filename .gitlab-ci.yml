@@ -1,15 +1,16 @@
 stages:
   - build
-  - release
+  - upload
 
 variables:
   ZIP_FILE: "${CI_PROJECT_NAME}-${CI_COMMIT_REF_NAME}-${CI_COMMIT_SHORT_SHA}.zip"
+  RCLONE_CONFIG: "/tmp/rclone.conf"
+
+before_script:
+  - apk update && apk add zip rclone
 
 build_zip:
   stage: build
-  image: alpine:latest
-  before_script:
-    - apk update && apk add zip
   script:
     - echo "Zipping the repository, excluding .git and hidden files/folders..."
     - zip -r "${ZIP_FILE}" . --exclude ".*" --exclude ".*/**" --exclude ".git/**"
@@ -17,37 +18,23 @@ build_zip:
     paths:
       - "${ZIP_FILE}"
 
-release:
-  stage: release
-  image: alpine:latest
-  before_script:
-    - apk update && apk add curl jq
+upload_to_r2:
+  stage: upload
   script:
     - |
-      echo "Creating a release..."
-      curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
-           --data "name=Release $CI_COMMIT_REF_NAME" \
-           --data "tag_name=$CI_COMMIT_REF_NAME" \
-           --data "ref=$CI_COMMIT_SHA" \
-           --data "description=Release of version $CI_COMMIT_REF_NAME" \
-           "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/releases"
-    - |
-      echo "Uploading the zip file to the release..."
-      UPLOAD_RESPONSE=$(curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
-                             --upload-file "${ZIP_FILE}" \
-                             "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/uploads")
-      UPLOAD_URL=$(echo $UPLOAD_RESPONSE | jq -r '.url')
-    - |
-      curl --header "PRIVATE-TOKEN: $GITLAB_PRIVATE_TOKEN" \
-           --request PUT \
-           --data "assets.links[0][name]=${ZIP_FILE}" \
-           --data "assets.links[0][url]=${UPLOAD_URL}" \
-           "https://gitlab.com/api/v4/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_REF_NAME"
-  only:
-    - tags
+      echo "Creating rclone configuration file..."
+      cat <<EOF > $RCLONE_CONFIG
+      [r2]
+      type = s3
+      provider = Cloudflare
+      access_key_id = $R2_ACCESS_KEY_ID
+      secret_access_key = $R2_SECRET_ACCESS_KEY
+      endpoint = $R2_ENDPOINT
+      EOF
+    - echo "Uploading zip file to Cloudflare R2..."
+    - rclone copy ${ZIP_FILE} r2:${R2_BUCKET}
   dependencies:
     - build_zip
-  artifacts:
-    paths:
-      - "${ZIP_FILE}"
+  only:
+    - tags
 
