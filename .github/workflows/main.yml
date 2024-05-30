@@ -30,20 +30,18 @@ jobs:
           echo "[r2]" > /tmp/rclone.conf
           echo "type = s3" >> /tmp/rclone.conf
           echo "provider = Cloudflare" >> /tmp/rclone.conf
-          echo "access_key_id = ${{ secrets.r2.R2_ACCESS_KEY_ID }}" >> /tmp/rclone.conf
-          echo "secret_access_key = ${{ secrets.r2.R2_SECRET_ACCESS_KEY }}" >> /tmp/rclone.conf
-          echo "bucket = ${{ vars.r2.R2_BUCKET }}" >> /tmp/rclone.conf
+          echo "access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}" >> /tmp/rclone.conf
+          echo "secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}" >> /tmp/rclone.conf
+          echo "endpoint = ${{ secrets.R2_ENDPOINT }}" >> /tmp/rclone.conf
 
       - name: Upload to Cloudflare R2
         run: |
-          echo "Uploading to Cloudflare R2..."
-          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ vars.r2.R2_BUCKET }} --config /tmp/rclone.conf -vv --dump-bodies --retries 1 || echo "Upload failed with exit code $?"
+          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
         env:
           ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
 
       - name: Post to Discord
-        if: success()
         run: |
-          FILE_URL="${{ secrets.r2.R2_ENDPOINT }}/${{ vars.r2.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
+          FILE_URL="${{ secrets.R2_ENDPOINT }}/${{ secrets.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
           echo "Posting to Discord..."
-          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $FILE_URL\"}" ${{ secrets.r2.DISCORD_WEBHOOK_URL }}
+          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $FILE_URL\"}" ${{ secrets.DISCORD_WEBHOOK_URL }}
