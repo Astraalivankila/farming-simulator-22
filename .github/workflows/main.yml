@@ -23,19 +23,19 @@ jobs:
 
       - name: Generate timestamp
         id: timestamp
-        run: echo "::set-output name=timestamp::$(date +'%Y%m%d%H%M%S')"
+        run: echo "timestamp=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
 
       - name: Set zip file name
         run: |
           echo "Setting zip file name..."
-          ZIP_FILE=BARNHEIM-${{ steps.timestamp.outputs.timestamp }}.zip
-          echo "::set-output name=zip_file::$ZIP_FILE"
+          ZIP_FILE=release-${{ github.event.repository.name }}-${{ env.timestamp }}.zip
+          echo "zip_file=$ZIP_FILE" >> $GITHUB_ENV
 
       - name: Zip repository
         run: |
           echo "Zipping the repository, excluding .git and hidden files/folders..."
           cd $GITHUB_WORKSPACE
-          zip -r ${{ steps.zip_file }} . -x ".*" -x "*/.*" -x "*/.git/**"
+          zip -r ${{ env.zip_file }} . -x ".*" -x "*/.*" -x "*/.git/**"
 
       - name: Configure rclone
         run: |
@@ -48,11 +48,11 @@ jobs:
 
       - name: Upload to Cloudflare R2
         run: |
-          rclone copy ${{ steps.zip_file }} r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
+          rclone copy ${{ env.zip_file }} r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
 
       - name: Construct download URL
         run: |
-          DOWNLOAD_URL="${{ secrets.DOWNLOAD_URL }}/${{ steps.zip_file }}"
+          DOWNLOAD_URL="${{ secrets.DOWNLOAD_URL }}/${{ env.zip_file }}"
           echo "Download URL: $DOWNLOAD_URL"
 
       - name: Post to Discord
