@@ -25,12 +25,16 @@ jobs:
         id: timestamp
         run: echo "::set-output name=timestamp::$(date +'%Y%m%d%H%M%S')"
 
+      - name: Set zip file name
+        run: |
+          echo "Setting zip file name..."
+          ZIP_FILE=BARNHEIM-${{ steps.timestamp.outputs.timestamp }}.zip
+          echo "::set-output name=zip_file::$ZIP_FILE"
+
       - name: Zip repository
         run: |
           echo "Zipping the repository, excluding .git and hidden files/folders..."
-          zip -r release-${{ github.event.repository.name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}.zip . -x ".*" -x ".*/**" -x ".git/**"
-        env:
-          ZIP_FILE: release-${{ github.event.repository.name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}.zip
+          zip -r ${{ steps.zip_file }} . -x ".*" -x ".*/**" -x ".git/**"
 
       - name: Configure rclone
         run: |
@@ -40,28 +44,17 @@ jobs:
         run: |
           echo "Testing rclone configuration..."
           rclone lsd r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf || echo "Listing directories failed as expected due to no_check_bucket"
-        env:
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
 
       - name: Upload to Cloudflare R2
         run: |
-          rclone copy release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
-        env:
-          ZIP_FILE: release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          rclone copy ${{ steps.zip_file }} r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
 
       - name: Construct download URL
         run: |
-          DOWNLOAD_URL="${{ vars.DOWNLOAD_URL }}"
-          FILE_NAME="release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip"
-          DOWNLOAD_URL="${DOWNLOAD_URL}/${FILE_NAME}"
+          DOWNLOAD_URL="${{ secrets.DOWNLOAD_URL }}/${{ steps.zip_file }}"
           echo "Download URL: $DOWNLOAD_URL"
-        env:
-          DOWNLOAD_URL: ${{ vars.DOWNLOAD_URL }}
 
       - name: Post to Discord
         run: |
           echo "Posting to Discord..."
           curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $DOWNLOAD_URL\"}" ${{ secrets.DISCORD_WEBHOOK_URL }}
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
