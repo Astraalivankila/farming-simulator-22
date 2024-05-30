@@ -36,13 +36,13 @@ jobs:
 
       - name: Upload to Cloudflare R2
         run: |
-          echo "${{ secrets.R2_BUCKET }}
-          echo "${{ secrets.r2.R2_BUCKET }}
-          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.r2.R2_BUCKET }} --config /tmp/rclone.conf
+          echo "Uploading to Cloudflare R2..."
+          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.r2.R2_BUCKET }} --config /tmp/rclone.conf -vv --dump-bodies --retries 1 || echo "Upload failed with exit code $?"
         env:
           ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
 
       - name: Post to Discord
+        if: success()
         run: |
           FILE_URL="${{ secrets.r2.R2_ENDPOINT }}/${{ secrets.r2.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
           echo "Posting to Discord..."
