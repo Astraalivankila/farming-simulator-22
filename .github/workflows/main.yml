@@ -1,12 +1,14 @@
 name: Deploy to Cloudflare R2
 
 on:
-  workflow_dispatch
+  push:
+    tags:
+      - '*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    environment: r2
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -28,18 +30,20 @@ jobs:
           echo "[r2]" > /tmp/rclone.conf
           echo "type = s3" >> /tmp/rclone.conf
           echo "provider = Cloudflare" >> /tmp/rclone.conf
-          echo "access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}" >> /tmp/rclone.conf
-          echo "secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}" >> /tmp/rclone.conf
-          echo "endpoint = ${{ secrets.R2_ENDPOINT }}" >> /tmp/rclone.conf
+          echo "access_key_id = ${{ secrets.r2.R2_ACCESS_KEY_ID }}" >> /tmp/rclone.conf
+          echo "secret_access_key = ${{ secrets.r2.R2_SECRET_ACCESS_KEY }}" >> /tmp/rclone.conf
+          echo "endpoint = ${{ secrets.r2.R2_ENDPOINT }}" >> /tmp/rclone.conf
 
       - name: Upload to Cloudflare R2
         run: |
-          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
+          echo "${{ secrets.R2_BUCKET }}
+          echo "${{ secrets.r2.R2_BUCKET }}
+          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.r2.R2_BUCKET }} --config /tmp/rclone.conf
         env:
           ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
 
       - name: Post to Discord
         run: |
-          FILE_URL="${{ secrets.R2_ENDPOINT }}/${{ secrets.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
+          FILE_URL="${{ secrets.r2.R2_ENDPOINT }}/${{ secrets.r2.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
           echo "Posting to Discord..."
-          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $FILE_URL\"}" ${{ secrets.DISCORD_WEBHOOK_URL }}
+          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $FILE_URL\"}" ${{ secrets.r2.DISCORD_WEBHOOK_URL }}
