@@ -10,13 +10,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout code with Git LFS
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0  # Fetch all history including LFS files
+          lfs: true       # Ensure LFS files are checked out
 
       - name: Install zip and rclone
         run: |
           sudo apt-get update
-          sudo apt-get install -y zip rclone
+          sudo apt-get install -y zip rclone git-lfs
 
       - name: Generate timestamp
         id: timestamp
@@ -25,9 +28,9 @@ jobs:
       - name: Zip repository
         run: |
           echo "Zipping the repository, excluding .git and hidden files/folders..."
-          zip -r release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip . -x ".*" -x ".*/**" -x ".git/**"
+          zip -r release-${{ github.event.repository.name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}.zip . -x ".*" -x ".*/**" -x ".git/**"
         env:
-          ZIP_FILE: release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip
+          ZIP_FILE: release-${{ github.event.repository.name }}-${{ github.sha }}-${{ steps.timestamp.outputs.timestamp }}.zip
 
       - name: Configure rclone
         run: |
@@ -49,12 +52,12 @@ jobs:
 
       - name: Construct download URL
         run: |
-          DOWNLOAD_URL="${{ secrets.DOWNLOAD_URL }}"
+          DOWNLOAD_URL="${{ vars.DOWNLOAD_URL }}"
           FILE_NAME="release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip"
           DOWNLOAD_URL="${DOWNLOAD_URL}/${FILE_NAME}"
           echo "Download URL: $DOWNLOAD_URL"
         env:
-          DOWNLOAD_URL: ${{ secrets.DOWNLOAD_URL }}
+          DOWNLOAD_URL: ${{ vars.DOWNLOAD_URL }}
 
       - name: Post to Discord
         run: |
