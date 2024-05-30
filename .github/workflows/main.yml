@@ -1,9 +1,7 @@
 name: Deploy to Cloudflare R2
 
 on:
-  push:
-    tags:
-      - '*'
+  workflow_dispatch
 
 jobs:
   build:
