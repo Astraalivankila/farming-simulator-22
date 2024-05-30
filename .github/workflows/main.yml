@@ -8,7 +8,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
+    environment: r2
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -37,3 +37,11 @@ jobs:
       - name: Upload to Cloudflare R2
         run: |
           rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
+        env:
+          ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
+
+      - name: Post to Discord
+        run: |
+          FILE_URL="${{ secrets.R2_ENDPOINT }}/${{ secrets.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
+          echo "Posting to Discord..."
+          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $FILE_URL\"}" ${{ secrets.DISCORD_WEBHOOK_URL }}
