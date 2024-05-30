@@ -28,7 +28,7 @@ jobs:
       - name: Set zip file name
         run: |
           echo "Setting zip file name..."
-          ZIP_FILE=release-${{ github.event.repository.name }}-${{ env.timestamp }}.zip
+          ZIP_FILE=BARNHEIM-${{ env.timestamp }}.zip
           echo "zip_file=$ZIP_FILE" >> $GITHUB_ENV
 
       - name: Zip repository
@@ -52,7 +52,7 @@ jobs:
 
       - name: Construct download URL
         run: |
-          DOWNLOAD_URL="${{ secrets.DOWNLOAD_URL }}/${{ env.zip_file }}"
+          DOWNLOAD_URL="${{ vars.DOWNLOAD_URL }}/${{ env.zip_file }}"
           echo "Download URL: $DOWNLOAD_URL"
 
       - name: Post to Discord
