@@ -34,7 +34,8 @@ jobs:
       - name: Zip repository
         run: |
           echo "Zipping the repository, excluding .git and hidden files/folders..."
-          zip -r ${{ steps.zip_file }} . -x ".*" -x ".*/**" -x ".git/**"
+          cd $GITHUB_WORKSPACE
+          zip -r ${{ steps.zip_file }} . -x ".*" -x "*/.*" -x "*/.git/**"
 
       - name: Configure rclone
         run: |
