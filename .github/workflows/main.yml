@@ -1,6 +1,9 @@
 name: Deploy to Cloudflare R2
 
-on: workflow_dispatch
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build:
@@ -15,12 +18,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y zip rclone
 
+      - name: Generate timestamp
+        id: timestamp
+        run: echo "::set-output name=timestamp::$(date +'%Y%m%d%H%M%S')"
+
       - name: Zip repository
         run: |
           echo "Zipping the repository, excluding .git and hidden files/folders..."
-          zip -r ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip . -x ".*" -x ".*/**" -x ".git/**"
+          zip -r release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip . -x ".*" -x ".*/**" -x ".git/**"
         env:
-          ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
+          ZIP_FILE: release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip
 
       - name: Configure rclone
         run: |
@@ -35,15 +42,23 @@ jobs:
 
       - name: Upload to Cloudflare R2
         run: |
-          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
+          rclone copy release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
         env:
-          ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
+          ZIP_FILE: release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip
           R2_BUCKET: ${{ secrets.R2_BUCKET }}
+
+      - name: Construct download URL
+        run: |
+          DOWNLOAD_URL="${{ secrets.DOWNLOAD_URL }}"
+          FILE_NAME="release-${{ github.event.repository.name }}-${{ github.ref_name }}-${{ steps.timestamp.outputs.timestamp }}.zip"
+          DOWNLOAD_URL="${DOWNLOAD_URL}/${FILE_NAME}"
+          echo "Download URL: $DOWNLOAD_URL"
+        env:
+          DOWNLOAD_URL: ${{ secrets.DOWNLOAD_URL }}
 
       - name: Post to Discord
         run: |
-          FILE_URL="${{ secrets.R2_ENDPOINT }}/${{ secrets.R2_BUCKET }}/${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip"
           echo "Posting to Discord..."
-          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $FILE_URL\"}" ${{ secrets.DISCORD_WEBHOOK_URL }}
+          curl -H "Content-Type: application/json" -d "{\"content\": \"New release available: $DOWNLOAD_URL\"}" ${{ secrets.DISCORD_WEBHOOK_URL }}
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
