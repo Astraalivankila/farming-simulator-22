@@ -1,0 +1,39 @@
+name: Deploy to Cloudflare R2
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install zip and rclone
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y zip rclone
+
+      - name: Zip repository
+        run: |
+          echo "Zipping the repository, excluding .git and hidden files/folders..."
+          zip -r ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip . -x ".*" -x ".*/**" -x ".git/**"
+        env:
+          ZIP_FILE: ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip
+
+      - name: Configure rclone
+        run: |
+          echo "[r2]" > /tmp/rclone.conf
+          echo "type = s3" >> /tmp/rclone.conf
+          echo "provider = Cloudflare" >> /tmp/rclone.conf
+          echo "access_key_id = ${{ secrets.R2_ACCESS_KEY_ID }}" >> /tmp/rclone.conf
+          echo "secret_access_key = ${{ secrets.R2_SECRET_ACCESS_KEY }}" >> /tmp/rclone.conf
+          echo "endpoint = ${{ secrets.R2_ENDPOINT }}" >> /tmp/rclone.conf
+
+      - name: Upload to Cloudflare R2
+        run: |
+          rclone copy ${{ github.event.repository.name }}-${{ github.ref_name }}-${{ github.sha }}.zip r2:${{ secrets.R2_BUCKET }} --config /tmp/rclone.conf
